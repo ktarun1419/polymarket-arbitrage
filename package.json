@@ -1,0 +1,16 @@
+{
+  "name": "prediction-arbitrage",
+  "version": "1.0.0",
+  "description": "Arbitrage bot for interprotocol",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.11.0",
+    "ws": "^8.18.3"
+  },
+  "author": "",
+  "license": "ISC"
+}
