@@ -12,7 +12,6 @@ async function main() {
   try {
     await bot.start();
 
-    // Print stats every 60 seconds
     setInterval(() => {
       const stats = bot.getStats();
       console.log(
