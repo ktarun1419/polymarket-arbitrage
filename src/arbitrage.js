@@ -19,16 +19,14 @@ function applyFees(amount, exchange, odds) {
 
 // Simulates arbitrage between two books
 function simulateArbitrage(buyBook, hedgeBook, buyExchange, hedgeExchange, maxShares = Infinity) {
-  // Input validation
+
   if (!buyBook?.length || !hedgeBook?.length) {
     return { error: "Invalid order books", profit: 0 };
   }
 
-  // Get the last elements (deepest liquidity levels)
   let optimisedYes = buyBook[buyBook.length - 1];
   let optimisedNo = hedgeBook[hedgeBook.length - 1];
 
-  // Quick profitability check using last elements
   if (optimisedYes.price + optimisedNo.price >= 1) {
     return {
       error: "No arbitrage opportunity",
@@ -37,11 +35,9 @@ function simulateArbitrage(buyBook, hedgeBook, buyExchange, hedgeExchange, maxSh
     };
   }
 
-  // Determine which side has larger size (reference side)
   let mainEntry = optimisedYes.size > optimisedNo.size ? optimisedYes : optimisedNo;
   let mainExchange = optimisedYes.size > optimisedNo.size ? buyExchange : hedgeExchange;
 
-  // Loop through the side with smaller size
   let loop = optimisedYes.size < optimisedNo.size ? buyBook : hedgeBook;
   let loopExchange = optimisedYes.size < optimisedNo.size ? buyExchange : hedgeExchange;
 
@@ -57,7 +53,6 @@ function simulateArbitrage(buyBook, hedgeBook, buyExchange, hedgeExchange, maxSh
     totalCost: 0,
   };
 
-  // Iterate through the constraining book from worst to best price
   for (let i = loop.length - 1; i >= 0; i--) {
     let entry = loop[i];
     let fillSize = prevEntry.size + entry.size;
@@ -86,7 +81,6 @@ function simulateArbitrage(buyBook, hedgeBook, buyExchange, hedgeExchange, maxSh
       totalCost: totalLoopCost,
     };
 
-    // Track best execution
     if (profit > bestProfit) {
       bestProfit = profit;
       bestState = {
@@ -98,7 +92,6 @@ function simulateArbitrage(buyBook, hedgeBook, buyExchange, hedgeExchange, maxSh
         profitPercentage: (profit / payout) * 100,
         avgCostPerShare: fillSize > 0 ? totalCost / fillSize : 0,
 
-        // Detailed breakdown
         mainSide: {
           exchange: mainExchange,
           size: fillSize,
