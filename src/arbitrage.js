@@ -1,9 +1,15 @@
 const LIMITLESS_FEE = 0.001; // 1%
 const POLYMARKET_FEE = 0.0015; // 1.5%
 
-function applyFees(amount, exchange) {
+function applyFees(amount, exchange, odds) {
   if (exchange === "LIMITLESS") {
-    return amount * (1 + LIMITLESS_FEE);
+    if (odds <= 0.5) {
+      return amount * (1 + 0.03);
+    } else if (odds <= 0.75) {
+      return amount * (1 + 0.015);
+    } else {
+      return amount * (1 + 0.005);
+    }
   }
   if (exchange === "POLYMARKET") {
     return amount * (1 + POLYMARKET_FEE);
@@ -11,117 +17,113 @@ function applyFees(amount, exchange) {
   return amount;
 }
 
-
-
-
 // Simulates arbitrage between two books
 function simulateArbitrage(buyBook, hedgeBook, buyExchange, hedgeExchange, maxShares = Infinity) {
-    // Input validation
-    if (!buyBook?.length || !hedgeBook?.length) {
-      return { error: "Invalid order books", profit: 0 };
-    }
-  
-    // Get the last elements (deepest liquidity levels)
-    let optimisedYes = buyBook[buyBook.length - 1];
-    let optimisedNo = hedgeBook[hedgeBook.length - 1];
-  
-    // Quick profitability check using last elements
-    if (optimisedYes.price + optimisedNo.price >= 1) {
-      return { 
-        error: "No arbitrage opportunity", 
-        reason: `Combined cost at depth: ${(optimisedYes.price + optimisedNo.price).toFixed(6)} >= 1.0000`,
-        profit: 0 
-      };
-    }
-  
-    // Determine which side has larger size (reference side)
-    let mainEntry = optimisedYes.size > optimisedNo.size ? optimisedYes : optimisedNo;
-    let mainExchange = optimisedYes.size > optimisedNo.size ? buyExchange : hedgeExchange;
-    
-    // Loop through the side with smaller size
-    let loop = optimisedYes.size < optimisedNo.size ? buyBook : hedgeBook;
-    let loopExchange = optimisedYes.size < optimisedNo.size ? buyExchange : hedgeExchange;
-  
-    console.log(`🔍 Reference side: ${mainExchange} (size: ${mainEntry.size.toLocaleString()}, price: $${mainEntry.price.toFixed(6)})`);
-    console.log(`🔄 Iterating through: ${loopExchange} (${loop.length} levels)`);
-  
-    let bestProfit = -Infinity;
-    let bestState = null;
-  
-    let prevEntry = {
-      price: 0,
-      size: 0,
-      totalCost: 0
-    };
-  
-    // Iterate through the constraining book from worst to best price
-    for (let i = loop.length - 1; i >= 0; i--) {
-      let entry = loop[i];
-      let fillSize = prevEntry.size + entry.size;
-      
-      // Stop if we exceed the reference side's capacity
-      if (mainEntry.size < fillSize) {
-        console.log(`⚠️  Stopping: fillSize ${fillSize.toLocaleString()} > mainEntry.size ${mainEntry.size.toLocaleString()}`);
-        break;
-      }
-  
-      // Calculate cumulative cost for the loop side
-      let totalLoopCost = prevEntry.totalCost + (entry.size * entry.price);
-      let mainCost = mainEntry.price * fillSize
-      // Total cost including both sides
-      let totalCost = totalLoopCost + mainCost;
-      
-      // Guaranteed payout is the fillSize (shares * $1)
-      let payout = fillSize;
-      let profit = payout - totalCost;
-  
-      if (profit < 0) {
-        console.log(`❌ Profit turned negative, stopping iteration`);
-        break;
-      }
-  
-      prevEntry = {
-        price: fillSize > 0 ? totalLoopCost / fillSize : 0,
-        size: fillSize,
-        totalCost: totalLoopCost
-      };
-  
-      // Track best execution
-      if (profit > bestProfit) {
-        bestProfit = profit;
-        bestState = {
-          direction: `${buyExchange} BUY + ${hedgeExchange} HEDGE`,
-          shares: fillSize,
-          totalCost: totalCost,
-          payout: payout,
-          profit: profit,
-          profitPercentage: (profit / payout) * 100,
-          avgCostPerShare: fillSize > 0 ? totalCost / fillSize : 0,
-          
-          // Detailed breakdown
-          mainSide: {
-            exchange: mainExchange,
-            size: fillSize, 
-            price: mainEntry.price,
-            cost: mainCost
-          },
-          loopSide: {
-            exchange: loopExchange,
-            avgPrice: prevEntry.price,
-            size: fillSize,
-            cost: totalLoopCost,
-            levelsUsed: loop.length - i
-          }
-        };
-      }
-    }
-  
-    return bestState || { 
-      error: "No profitable execution found", 
+  // Input validation
+  if (!buyBook?.length || !hedgeBook?.length) {
+    return { error: "Invalid order books", profit: 0 };
+  }
+
+  // Get the last elements (deepest liquidity levels)
+  let optimisedYes = buyBook[buyBook.length - 1];
+  let optimisedNo = hedgeBook[hedgeBook.length - 1];
+
+  // Quick profitability check using last elements
+  if (optimisedYes.price + optimisedNo.price >= 1) {
+    return {
+      error: "No arbitrage opportunity",
+      reason: `Combined cost at depth: ${(optimisedYes.price + optimisedNo.price).toFixed(6)} >= 1.0000`,
       profit: 0,
-      reason: "All tested sizes resulted in negative profit"
     };
   }
+
+  // Determine which side has larger size (reference side)
+  let mainEntry = optimisedYes.size > optimisedNo.size ? optimisedYes : optimisedNo;
+  let mainExchange = optimisedYes.size > optimisedNo.size ? buyExchange : hedgeExchange;
+
+  // Loop through the side with smaller size
+  let loop = optimisedYes.size < optimisedNo.size ? buyBook : hedgeBook;
+  let loopExchange = optimisedYes.size < optimisedNo.size ? buyExchange : hedgeExchange;
+
+  console.log(`🔍 Reference side: ${mainExchange} (size: ${mainEntry.size.toLocaleString()}, price: $${mainEntry.price.toFixed(6)})`);
+  console.log(`🔄 Iterating through: ${loopExchange} (${loop.length} levels)`);
+
+  let bestProfit = -Infinity;
+  let bestState = null;
+
+  let prevEntry = {
+    price: 0,
+    size: 0,
+    totalCost: 0,
+  };
+
+  // Iterate through the constraining book from worst to best price
+  for (let i = loop.length - 1; i >= 0; i--) {
+    let entry = loop[i];
+    let fillSize = prevEntry.size + entry.size;
+
+    if (mainEntry.size < fillSize) {
+      console.log(`⚠️  Stopping: fillSize ${fillSize.toLocaleString()} > mainEntry.size ${mainEntry.size.toLocaleString()}`);
+      break;
+    }
+
+    let totalLoopCost = applyFees(prevEntry.totalCost + entry.size * entry.price, hedgeExchange ,entry.price );
+    let mainCost = applyFees(mainEntry.price * fillSize, mainExchange);
+
+    let totalCost = totalLoopCost + mainCost;
+
+    let payout = fillSize;
+    let profit = payout - totalCost;
+
+    if (profit < 0) {
+      console.log(`❌ Profit turned negative, stopping iteration`);
+      break;
+    }
+
+    prevEntry = {
+      price: fillSize > 0 ? totalLoopCost / fillSize : 0,
+      size: fillSize,
+      totalCost: totalLoopCost,
+    };
+
+    // Track best execution
+    if (profit > bestProfit) {
+      bestProfit = profit;
+      bestState = {
+        direction: `${buyExchange} BUY + ${hedgeExchange} HEDGE`,
+        shares: fillSize,
+        totalCost: totalCost,
+        payout: payout,
+        profit: profit,
+        profitPercentage: (profit / payout) * 100,
+        avgCostPerShare: fillSize > 0 ? totalCost / fillSize : 0,
+
+        // Detailed breakdown
+        mainSide: {
+          exchange: mainExchange,
+          size: fillSize,
+          price: mainEntry.price,
+          cost: mainCost,
+        },
+        loopSide: {
+          exchange: loopExchange,
+          avgPrice: prevEntry.price,
+          size: fillSize,
+          cost: totalLoopCost,
+          levelsUsed: loop.length - i,
+        },
+      };
+    }
+  }
+
+  return (
+    bestState || {
+      error: "No profitable execution found",
+      profit: 0,
+      reason: "All tested sizes resulted in negative profit",
+    }
+  );
+}
 
 // Finds the best cross-market arbitrage (both directions)
 function findBestCrossMarketArbitrage(polymarketBook, limitlessBook, maxShares = Infinity) {
@@ -141,7 +143,6 @@ function findBestCrossMarketArbitrage(polymarketBook, limitlessBook, maxShares =
   // Run both directions
   const opp1 = simulateArbitrage([...polyYesAsks], [...limitNoAsks], "POLYMARKET", "LIMITLESS", maxShares); // Buy YES Poly, Hedge NO Limitless
   const opp2 = simulateArbitrage([...limitYesAsks], [...polyNoAsks], "LIMITLESS", "POLYMARKET", maxShares); // Buy YES Limitless, Hedge NO Poly
-
 
   if (!opp1 && !opp2) return null;
   if (!opp2 || (opp1 && opp1.profit > opp2.profit)) return opp1;
