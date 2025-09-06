@@ -28,10 +28,11 @@ async function fetchLimitlessTokenPrice(bot, tokenId) {
       bot.limitlessData.set(priceData.tokenId, {
         protocol: "limitless",
         asset_id: priceData.tokenId,
-        yes_price: priceData.ask,
-        no_price: parseFloat(1 - priceData.bid),
+        yes_price: priceData.yes_price,
+        no_price: parseFloat(1 - priceData.no_price),
         best_bid: priceData.bid || 0,
         best_ask: priceData.ask || 0,
+        orderbook: { bids: priceData.bids, asks: priceData.asks },
         last_updated: Date.now(),
       });
     }
@@ -41,31 +42,30 @@ async function fetchLimitlessTokenPrice(bot, tokenId) {
 }
 
 async function getLimitlessTokenPrice(tokenId) {
-    try {
-      const url = `${LIMITLESS_API_BASE}/${tokenId}/orderbook`;
-      const { data: result } = await axios.get(url);
-  
-      const bestBid = result.bids?.length ? parseFloat(result.bids[0].price) : 0;
-      const bestAsk = result.asks?.length ? parseFloat(result.asks[0].price) : 0;
-  
-      return { bid: bestBid, ask: bestAsk, tokenId: result.tokenId };
-    } catch (err) {
-      console.error(`❌ Axios fetch error for ${tokenId}:`, err.message);
-      throw err;
-    }
+  try {
+    const url = `${LIMITLESS_API_BASE}/${tokenId}/orderbook`;
+    const { data: result } = await axios.get(url);
+
+    const bestBid = result.bids?.length ? parseFloat(result.bids[0].price) : 0;
+    const bestAsk = result.asks?.length ? parseFloat(result.asks[0].price) : 0;
+
+    return { yes_price: bestAsk, no_price: bestBid, tokenId: result.tokenId, bids: result.bids, asks: result.asks };
+  } catch (err) {
+    console.error(`❌ Axios fetch error for ${tokenId}:`, err.message);
+    throw err;
   }
+}
 
-async function getLimitlessConfigFromSlug(slug){
-    const url = `${LIMITLESS_API_BASE}/${slug}`
+async function getLimitlessConfigFromSlug(slug) {
+  const url = `${LIMITLESS_API_BASE}/${slug}`;
 
-    const {data} = await axios.get(url);
-    const yes_token_id = data.tokens.yes
+  const { data } = await axios.get(url);
+  const yes_token_id = data.tokens.yes;
 
-    return {
-        market_id: slug,
-        yes_token_id
-    }
-
+  return {
+    market_id: slug,
+    yes_token_id,
+  };
 }
 
 module.exports = { initialLimitlessDataFetch, startLimitlessPeriodicUpdate, fetchLimitlessTokenPrice, getLimitlessConfigFromSlug };

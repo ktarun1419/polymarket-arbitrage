@@ -18,10 +18,10 @@ const crossMarketPairs = [
 
 
 const slugPairs = [
-  {
-    limitless: "us-stagflation-in-2025-1744723334416",
-    polymarket: "us-stagflation-in-2025",
-  },
+//   {
+//     limitless: "us-stagflation-in-2025-1744723334416",
+//     polymarket: "us-stagflation-in-2025",
+//   },
 ];
 
 async function buildMarketPairs() {

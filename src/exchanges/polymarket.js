@@ -70,6 +70,7 @@ function handlePolymarketEvent(bot, event) {
       no_price: parseFloat(1 - bestBid),
       best_bid: bestBid,
       best_ask: bestAsk,
+      orderbook: { bids, asks },
       last_updated: Date.now(),
     });
     onPolymarketUpdate(bot, asset_id);
